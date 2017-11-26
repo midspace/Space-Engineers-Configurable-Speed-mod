@@ -1,13 +1,13 @@
 namespace midspace.Speed.ConfigurableScript
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Linq;
-    using System.Text.RegularExpressions;
     using Messages;
     using Sandbox.Common.ObjectBuilders;
     using Sandbox.Definitions;
     using Sandbox.ModAPI;
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Text.RegularExpressions;
     using VRage.Game;
     using VRage.Game.Components;
 
@@ -19,7 +19,8 @@ namespace midspace.Speed.ConfigurableScript
         /// <summary>
         /// pattern defines speedconfig commands.
         /// </summary>
-        const string ConfigSpeedPattern = @"^(?<command>/configspeed)(?:\s+(?<config>((ResetAll)|(LargeShipMaxSpeed)|(LargeShipSpeed)|(LargeShip)|(Large)|(SmallShipMaxSpeed)|(SmallShipSpeed)|(SmallShip)|(Small)|(ThrustRatio)|(EnableThrustRatio)|(LockThrustRatio)))(?:\s+(?<value>.+))?)?";
+        const string ConfigSpeedPattern = @"^(?<command>/configspeed)(?:\s+(?<config>((ResetAll)|(LargeShipMaxSpeed)|(LargeShipSpeed)|(LargeShip)|(Large)|(SmallShipMaxSpeed)|(SmallShipSpeed)|(SmallShip)|(Small)|(ThrustRatio)|(EnableThrustRatio)|(LockThrustRatio)|(MaxAllSpeed)|(MissileMinSpeed)|(MissileMin)|(MissileMaxSpeed)|(MissileMax)))(?:\s+(?<value>.+))?)?";
+        const string ShortSpeedPattern = @"^(?<command>(/maxspeed))(?:\s+(?<value>.+))";
 
         #endregion
 
@@ -59,30 +60,38 @@ namespace midspace.Speed.ConfigurableScript
 
         public override void UpdateBeforeSimulation()
         {
-            //VRage.Utils.MyLog.Default.WriteLine("##Mod## ConfigurableSpeed UpdateBeforeSimulation");
-            if (Instance == null)
-                Instance = this;
-
-            // This needs to wait until the MyAPIGateway.Session.Player is created, as running on a Dedicated server can cause issues.
-            // It would be nicer to just read a property that indicates this is a dedicated server, and simply return.
-            if (!_isInitialized && MyAPIGateway.Session != null && MyAPIGateway.Session.Player != null)
+            try
             {
-                if (MyAPIGateway.Session.OnlineMode.Equals(MyOnlineModeEnum.OFFLINE)) // pretend single player instance is also server.
-                    InitServer();
-                if (!MyAPIGateway.Session.OnlineMode.Equals(MyOnlineModeEnum.OFFLINE) && MyAPIGateway.Multiplayer.IsServer && !MyAPIGateway.Utilities.IsDedicated)
-                    InitServer();
-                InitClient();
-            }
+                //VRage.Utils.MyLog.Default.WriteLine("##Mod## ConfigurableSpeed UpdateBeforeSimulation");
+                if (Instance == null)
+                    Instance = this;
 
-            // Dedicated Server.
-            if (!_isInitialized && MyAPIGateway.Utilities != null && MyAPIGateway.Multiplayer != null
-                && MyAPIGateway.Session != null && MyAPIGateway.Utilities.IsDedicated && MyAPIGateway.Multiplayer.IsServer)
+                // This needs to wait until the MyAPIGateway.Session.Player is created, as running on a Dedicated server can cause issues.
+                // It would be nicer to just read a property that indicates this is a dedicated server, and simply return.
+                if (!_isInitialized && MyAPIGateway.Session != null && MyAPIGateway.Session.Player != null)
+                {
+                    if (MyAPIGateway.Session.OnlineMode.Equals(MyOnlineModeEnum.OFFLINE)) // pretend single player instance is also server.
+                        InitServer();
+                    if (!MyAPIGateway.Session.OnlineMode.Equals(MyOnlineModeEnum.OFFLINE) && MyAPIGateway.Multiplayer.IsServer && !MyAPIGateway.Utilities.IsDedicated)
+                        InitServer();
+                    InitClient();
+                }
+
+                // Dedicated Server.
+                if (!_isInitialized && MyAPIGateway.Utilities != null && MyAPIGateway.Multiplayer != null
+                    && MyAPIGateway.Session != null && MyAPIGateway.Utilities.IsDedicated && MyAPIGateway.Multiplayer.IsServer)
+                {
+                    InitServer();
+                    return;
+                }
+
+                base.UpdateBeforeSimulation();
+            }
+            catch (Exception ex)
             {
-                InitServer();
-                return;
+                ClientLogger.WriteException(ex);
+                ServerLogger.WriteException(ex);
             }
-
-            base.UpdateBeforeSimulation();
         }
 
         private void InitClient()
@@ -123,114 +132,146 @@ namespace midspace.Speed.ConfigurableScript
 
         public override void Init(MyObjectBuilder_SessionComponent sessionComponent)
         {
-            // This Variables are already loaded by this point, but unaccessible because we need Utilities.
-            // Need to create the Utilities, as it isn't yet created by the game at this point.
-            // Used to use MyModAPIHelper.OnSessionLoaded() to do this, however it appears to be causing premature Cube Loading which affects other mod scripts.
-
-            if (MyAPIGateway.Utilities == null)
-                // MyAPIUtilities.Static used to be blacklisted. Something may have change, which is good.
-                MyAPIGateway.Utilities = MyAPIUtilities.Static;
-
-            DefaultDefinitionValues = new MidspaceEnvironmentComponent
+            try
             {
-                LargeShipMaxSpeed = (decimal)MyDefinitionManager.Static.EnvironmentDefinition.LargeShipMaxSpeed,
-                SmallShipMaxSpeed = (decimal)MyDefinitionManager.Static.EnvironmentDefinition.SmallShipMaxSpeed
-            };
+                // This Variables are already loaded by this point, but unaccessible because we need Utilities.
 
-            // Load the speed on both server and client.
-            string xmlValue;
-            if (MyAPIGateway.Utilities.GetVariable("MidspaceEnvironmentComponent", out xmlValue))
-            {
-                EnvironmentComponent = MyAPIGateway.Utilities.SerializeFromXML<MidspaceEnvironmentComponent>(xmlValue);
-                if (EnvironmentComponent != null)
+                // Need to create the Utilities, as it isn't yet created by the game at this point.
+                //MyModAPIHelper.OnSessionLoaded();
+
+                if (MyAPIGateway.Utilities == null)
+                    MyAPIGateway.Utilities = MyAPIUtilities.Static;
+                //    MyAPIGateway.Utilities = new MyAPIUtilities();
+
+                MyDefinitionId missileId = new MyDefinitionId(typeof(MyObjectBuilder_AmmoDefinition), "Missile");
+                MyMissileAmmoDefinition ammoDefinition = MyDefinitionManager.Static.GetAmmoDefinition(missileId) as MyMissileAmmoDefinition;
+
+                DefaultDefinitionValues = new MidspaceEnvironmentComponent
                 {
-                    // Fix Defaults.
-                    if (EnvironmentComponent.Version == 0)
-                        EnvironmentComponent.Version = SpeedConsts.ModCommunicationVersion;
-                    if (EnvironmentComponent.ThrustRatio <= 0)
-                        EnvironmentComponent.ThrustRatio = 1;
-                    if (EnvironmentComponent.GyroPowerMod <= 0)
-                        EnvironmentComponent.GyroPowerMod = 1;
-                    if (EnvironmentComponent.IonAirEfficient < 0 || EnvironmentComponent.IonAirEfficient > 1)
-                        EnvironmentComponent.IonAirEfficient = 0;
-                    if (EnvironmentComponent.AtmosphereSpaceEfficient < 0 || EnvironmentComponent.AtmosphereSpaceEfficient > 1)
-                        EnvironmentComponent.AtmosphereSpaceEfficient = 0;
+                    LargeShipMaxSpeed = (decimal)MyDefinitionManager.Static.EnvironmentDefinition.LargeShipMaxSpeed,
+                    SmallShipMaxSpeed = (decimal)MyDefinitionManager.Static.EnvironmentDefinition.SmallShipMaxSpeed,
+                    MissileMinSpeed = (decimal)(ammoDefinition?.MissileInitialSpeed ?? 0),
+                    MissileMaxSpeed = (decimal)(ammoDefinition?.DesiredSpeed ?? 0),
+                };
 
-
-                    // Apply settings.
-                    if (EnvironmentComponent.LargeShipMaxSpeed > 0)
-                        MyDefinitionManager.Static.EnvironmentDefinition.LargeShipMaxSpeed = (float)EnvironmentComponent.LargeShipMaxSpeed;
-                    if (EnvironmentComponent.SmallShipMaxSpeed > 0)
-                        MyDefinitionManager.Static.EnvironmentDefinition.SmallShipMaxSpeed = (float)EnvironmentComponent.SmallShipMaxSpeed;
-
-                    if (EnvironmentComponent.EnableThrustRatio)
+                // Load the speed on both server and client.
+                string xmlValue;
+                if (MyAPIGateway.Utilities.GetVariable("MidspaceEnvironmentComponent", out xmlValue))
+                {
+                    EnvironmentComponent = MyAPIGateway.Utilities.SerializeFromXML<MidspaceEnvironmentComponent>(xmlValue);
+                    if (EnvironmentComponent != null)
                     {
-                        List<MyDefinitionBase> blocks = MyDefinitionManager.Static.GetAllDefinitions().Where(d => d is MyCubeBlockDefinition &&
-                                                        (((MyCubeBlockDefinition)d).Id.TypeId == typeof(MyObjectBuilder_Thrust))).ToList();
-                        foreach (var block in blocks)
+                        // Fix Defaults.
+                        if (EnvironmentComponent.Version == 0)
+                            EnvironmentComponent.Version = SpeedConsts.ModCommunicationVersion;
+                        if (EnvironmentComponent.ThrustRatio <= 0)
+                            EnvironmentComponent.ThrustRatio = 1;
+                        if (EnvironmentComponent.GyroPowerMod <= 0)
+                            EnvironmentComponent.GyroPowerMod = 1;
+                        if (EnvironmentComponent.IonAirEfficient < 0 || EnvironmentComponent.IonAirEfficient > 1)
+                            EnvironmentComponent.IonAirEfficient = 0;
+                        if (EnvironmentComponent.AtmosphereSpaceEfficient < 0 || EnvironmentComponent.AtmosphereSpaceEfficient > 1)
+                            EnvironmentComponent.AtmosphereSpaceEfficient = 0;
+                        if (EnvironmentComponent.MissileMinSpeed == 0)
+                            EnvironmentComponent.MissileMinSpeed = DefaultDefinitionValues.MissileMinSpeed;
+                        if (EnvironmentComponent.MissileMaxSpeed == 0)
+                            EnvironmentComponent.MissileMaxSpeed = DefaultDefinitionValues.MissileMaxSpeed;
+
+                        // Apply settings.
+                        if (EnvironmentComponent.LargeShipMaxSpeed > 0)
+                            MyDefinitionManager.Static.EnvironmentDefinition.LargeShipMaxSpeed = (float)EnvironmentComponent.LargeShipMaxSpeed;
+                        if (EnvironmentComponent.SmallShipMaxSpeed > 0)
+                            MyDefinitionManager.Static.EnvironmentDefinition.SmallShipMaxSpeed = (float)EnvironmentComponent.SmallShipMaxSpeed;
+
+                        if (EnvironmentComponent.EnableThrustRatio)
                         {
-                            MyThrustDefinition thrustBlock = (MyThrustDefinition)block;
-
-                            // thrustBlock.ThrusterType == // this only affects the sound type.
-
-                            //thrustBlock.ResourceSinkGroup
-
-                            //if (thrustBlock.NeedsAtmosphereForInfluence) // ??? might be indicative of atmosphic thruster.
-                            if (thrustBlock.PropellerUse)
+                            List<MyDefinitionBase> blocks = MyDefinitionManager.Static.GetAllDefinitions().Where(d => d is MyCubeBlockDefinition &&
+                                                                (((MyCubeBlockDefinition) d).Id.TypeId == typeof (MyObjectBuilder_Thrust))).ToList();
+                            foreach (var block in blocks)
                             {
-                                // Is atmosphic thruster.
+                                MyThrustDefinition thrustBlock = (MyThrustDefinition)block;
 
-                                // MinPlanetaryInfluence is the one to adjust.
-                                // the default of 0.3 takes it down into the gravity well, somewhere below where Low Oxygen starts.
-                                // at 0.0, it is at the cusp between Low Oxygen and No oxygen.
-                                // at -0.3, it allows the atmosphic thruster to work in Space.
+                                /*
+                                // thrustBlock.ThrusterType == // this only affects the sound type.
 
-                                //thrustBlock.MinPlanetaryInfluence = -0.3f;       // 0.3  
-                                //thrustBlock.MaxPlanetaryInfluence = 1f;         // 1.0
-                                //thrustBlock.EffectivenessAtMinInfluence = 0f;   // 0.0
-                                //thrustBlock.EffectivenessAtMaxInfluence = 1f;   // 1.0
-                                //thrustBlock.NeedsAtmosphereForInfluence = true; // true
+                                //thrustBlock.ResourceSinkGroup
+
+                                //if (thrustBlock.NeedsAtmosphereForInfluence) // ??? might be indicative of atmosphic thruster.
+                                if (thrustBlock.PropellerUse)
+                                {
+                                    // Is atmosphic thruster.
+
+                                    // MinPlanetaryInfluence is the one to adjust.
+                                    // the default of 0.3 takes it down into the gravity well, somewhere below where Low Oxygen starts.
+                                    // at 0.0, it is at the cusp between Low Oxygen and No oxygen.
+                                    // at -0.3, it allows the atmosphic thruster to work in Space.
+
+                                    //thrustBlock.MinPlanetaryInfluence = -0.3f;       // 0.3  
+                                    //thrustBlock.MaxPlanetaryInfluence = 1f;         // 1.0
+                                    //thrustBlock.EffectivenessAtMinInfluence = 0f;   // 0.0
+                                    //thrustBlock.EffectivenessAtMaxInfluence = 1f;   // 1.0
+                                    //thrustBlock.NeedsAtmosphereForInfluence = true; // true
+                                }
+                                else
+                                {
+                                    // Is Ion or Hydrogen thruster.
+
+                                    //thrustBlock.FuelConverter != null // ??? Hydrogen or other fuel propellant.
+
+                                    //thrustBlock.MinPlanetaryInfluence = 0.0f;       // 0.0  
+                                    //thrustBlock.MaxPlanetaryInfluence = 0.3f;         // 1.0
+                                    //thrustBlock.EffectivenessAtMinInfluence = 1.0f;   // 1.0
+                                    //thrustBlock.EffectivenessAtMaxInfluence = 0.0f;   // 0.3
+                                }
+                                */
+                                thrustBlock.ForceMagnitude *= (float) EnvironmentComponent.ThrustRatio;
                             }
-                            else
-                            {
-                                // Is Ion or Hydrogen thruster.
-
-                                //thrustBlock.FuelConverter != null // ??? Hydrogen or other fuel propellant.
-
-                                //thrustBlock.MinPlanetaryInfluence = 0.0f;       // 0.0  
-                                //thrustBlock.MaxPlanetaryInfluence = 0.3f;         // 1.0
-                                //thrustBlock.EffectivenessAtMinInfluence = 1.0f;   // 1.0
-                                //thrustBlock.EffectivenessAtMaxInfluence = 0.0f;   // 0.3
-                            }
-                            thrustBlock.ForceMagnitude *= (float)EnvironmentComponent.ThrustRatio;
                         }
-                    }
 
-                    // if enabled Gyro boost.
-                    {
-                        List<MyDefinitionBase> blocks = MyDefinitionManager.Static.GetAllDefinitions().Where(d => d is MyCubeBlockDefinition &&
-                                                        (((MyCubeBlockDefinition)d).Id.TypeId == typeof(MyObjectBuilder_Gyro))).ToList();
-                        foreach (var block in blocks)
+                        /*
+                        // if enabled Gyro boost.
                         {
-                            MyGyroDefinition gyroBlock = (MyGyroDefinition)block;
-                            //gyroBlock.ForceMagnitude *= 100; // This works.
+                            List<MyDefinitionBase> blocks = MyDefinitionManager.Static.GetAllDefinitions().Where(d => d is MyCubeBlockDefinition &&
+                                    (((MyCubeBlockDefinition) d).Id.TypeId == typeof (MyObjectBuilder_Gyro))).ToList();
+                            foreach (var block in blocks)
+                            {
+                                MyGyroDefinition gyroBlock = (MyGyroDefinition) block;
+                                //gyroBlock.ForceMagnitude *= 100; // This works.
+                            }
                         }
-                    }
+                        */
 
-                    OldEnvironmentComponent = EnvironmentComponent;
-                    return;
+                        if (ammoDefinition != null && EnvironmentComponent.MissileMinSpeed > 0)
+                            ammoDefinition.MissileInitialSpeed = (float)EnvironmentComponent.MissileMinSpeed;
+                        if (ammoDefinition != null && EnvironmentComponent.MissileMaxSpeed > 0)
+                            ammoDefinition.DesiredSpeed = (float)EnvironmentComponent.MissileMaxSpeed;
+
+                        OldEnvironmentComponent = EnvironmentComponent.Clone();
+                        return;
+                    }
                 }
-            }
 
-            EnvironmentComponent = new MidspaceEnvironmentComponent
+                EnvironmentComponent = new MidspaceEnvironmentComponent
+                {
+                    Version = SpeedConsts.ModCommunicationVersion,
+                    LargeShipMaxSpeed = (decimal)MyDefinitionManager.Static.EnvironmentDefinition.LargeShipMaxSpeed,
+                    SmallShipMaxSpeed = (decimal)MyDefinitionManager.Static.EnvironmentDefinition.SmallShipMaxSpeed,
+                    EnableThrustRatio = false,
+                    MissileMinSpeed = (decimal)(ammoDefinition?.MissileInitialSpeed ?? 0),
+                    MissileMaxSpeed = (decimal)(ammoDefinition?.DesiredSpeed ?? 0),
+                    ThrustRatio = 1
+                };
+                OldEnvironmentComponent = EnvironmentComponent.Clone();
+            }
+            catch (Exception ex)
             {
-                Version = SpeedConsts.ModCommunicationVersion,
-                LargeShipMaxSpeed = (decimal)MyDefinitionManager.Static.EnvironmentDefinition.LargeShipMaxSpeed,
-                SmallShipMaxSpeed = (decimal)MyDefinitionManager.Static.EnvironmentDefinition.SmallShipMaxSpeed,
-                EnableThrustRatio = false,
-                ThrustRatio = 1
-            };
-            OldEnvironmentComponent = EnvironmentComponent;
+                VRage.Utils.MyLog.Default.WriteLine("##Mod## ERROR " + ex.Message);
+
+                // The Loggers doesn't actually exist yet, as Init is called before UpdateBeforeSimulation.
+                // TODO: should rework the code to change this.
+                //ClientLogger.WriteException(ex);
+                //ServerLogger.WriteException(ex);
+            }
         }
 
         #region detaching events
@@ -324,6 +365,13 @@ namespace midspace.Speed.ConfigurableScript
                 if (match.Success)
                 {
                     MessageConfig.SendMessage(match.Groups["config"].Value, match.Groups["value"].Value);
+                    return true;
+                }
+
+                match = Regex.Match(messageText, ShortSpeedPattern, RegexOptions.IgnoreCase);
+                if (match.Success)
+                {
+                    MessageConfig.SendMessage("MaxAllSpeed", match.Groups["value"].Value);
                     return true;
                 }
             }

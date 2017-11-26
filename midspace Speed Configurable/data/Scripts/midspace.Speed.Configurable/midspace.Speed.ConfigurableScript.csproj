@@ -97,8 +97,6 @@
     <Compile Include="Messages\MessageClientDialogMessage.cs" />
     <Compile Include="Messages\MessageClientTextMessage.cs" />
     <Compile Include="Messages\MessageConfig.cs" />
-    <Compile Include="Messages\MessageContainer.cs" />
-    <Compile Include="Messages\MessageIncomingMessageParts.cs" />
     <Compile Include="Messages\MessageSide.cs" />
     <Compile Include="MidspaceEnvironmentComponent.cs" />
     <Compile Include="TextLogger.cs" />

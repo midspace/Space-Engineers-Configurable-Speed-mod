@@ -44,5 +44,34 @@
 
         // Unused as yet.
         //public bool Realism { get; set; }
+
+        [ProtoMember(12)]
+        public decimal MissileMinSpeed { get; set; }
+
+        [ProtoMember(13)]
+        public decimal MissileMaxSpeed { get; set; }
+
+        /// <summary>
+        /// Make a copy of all values within <see cref="MidspaceEnvironmentComponent"/>.
+        /// </summary>
+        internal MidspaceEnvironmentComponent Clone()
+        {
+            return new MidspaceEnvironmentComponent
+            {
+                LargeShipMaxSpeed = LargeShipMaxSpeed,
+                SmallShipMaxSpeed = SmallShipMaxSpeed,
+                Version = Version,
+                EnableThrustRatio = EnableThrustRatio,
+                ThrustRatio = ThrustRatio,
+                GyroPowerMod = GyroPowerMod,
+                IonAirEfficient = IonAirEfficient,
+                AtmosphereSpaceEfficient = AtmosphereSpaceEfficient,
+                //LargeThrusterOverride = LargeThrusterOverride,
+                //SmallThrusterOverride = SmallThrusterOverride,
+                //Realism = Realism,
+                MissileMinSpeed = MissileMinSpeed,
+                MissileMaxSpeed = MissileMaxSpeed,
+            };
+        }
     }
 }

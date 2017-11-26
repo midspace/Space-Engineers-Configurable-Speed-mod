@@ -24,20 +24,9 @@ namespace midspace.Speed.ConfigurableScript
             if (MyAPIGateway.Multiplayer.IsServerPlayer(player.Client))
                 return true;
 
-            return player.PromoteLevel == MyPromoteLevel.Admin ||
-                   player.PromoteLevel == MyPromoteLevel.Owner ||
-                   player.PromoteLevel == MyPromoteLevel.SpaceMaster;
-
-            //if (player.IsAdmin)
-            //    return true;
-
-            //if (player.IsPromoted)
-            //    return true;
-
-            // clients is null when it's not a dedicated server.
-            // Otherwise Treat everyone as Normal Player.
-
-            //return false;
+            return player.PromoteLevel == MyPromoteLevel.Owner ||  // 5 star
+                player.PromoteLevel == MyPromoteLevel.Admin ||     // 4 star
+                player.PromoteLevel == MyPromoteLevel.SpaceMaster; // 3 star
         }
 
         public static IMyPlayer FindPlayerBySteamId(this IMyPlayerCollection collection, ulong steamId)

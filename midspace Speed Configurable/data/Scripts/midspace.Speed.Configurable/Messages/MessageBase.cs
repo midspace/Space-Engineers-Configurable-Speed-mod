@@ -9,8 +9,13 @@
     [XmlInclude(typeof(MessageClientTextMessage))]
     [XmlInclude(typeof(MessageConfig))]
     [ProtoContract]
+    [ProtoInclude(101, typeof(MessageClientDialogMessage))]
+    [ProtoInclude(102, typeof(MessageClientTextMessage))]
+    [ProtoInclude(103, typeof(MessageConfig))]
     public abstract class MessageBase
     {
+        #region properties
+
         /// <summary>
         /// The SteamId of the message's sender. Note that this will be set when the message is sent, so there is no need for setting it otherwise.
         /// </summary>
@@ -35,6 +40,19 @@
         [ProtoMember(4)]
         public MessageSide Side;
 
+        #endregion
+
+        ///// <summary>
+        ///// This will allow the serializer to automatically execute the Action in the same step as Deserialization,
+        ///// and reduce the message handling in the ConnectionHelper.
+        ///// Exception handling ConnectionHelper would have to be moved here too.
+        ///// </summary>
+        //[ProtoAfterDeserialization] // not yet whitelisted.
+        //void AfterDeserialization() // is not invoked after deserialization from xml
+        //{
+        //    InvokeProcessing();
+        //}
+
         public void InvokeProcessing()
         {
             switch (Side)
@@ -58,7 +76,7 @@
             catch (Exception ex)
             {
                 // TODO: send error to server and notify admins
-                ConfigurableSpeedComponentLogic.Instance.ClientLogger.WriteException(ex);
+                ConfigurableSpeedComponentLogic.Instance.ClientLogger.WriteException(ex, "Could not process message on Client.");
             }
         }
 
@@ -71,7 +89,7 @@
             }
             catch (Exception ex)
             {
-                ConfigurableSpeedComponentLogic.Instance.ServerLogger.WriteException(ex);
+                ConfigurableSpeedComponentLogic.Instance.ServerLogger.WriteException(ex, "Could not process message on Server.");
             }
         }
 

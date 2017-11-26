@@ -1,12 +1,11 @@
 ﻿namespace midspace.Speed.ConfigurableScript.Messages
 {
-    using System;
-    using System.Globalization;
-    using System.Text;
     using midspace.Speed.ConfigurableScript;
     using ProtoBuf;
     using Sandbox.Definitions;
     using Sandbox.ModAPI;
+    using System.Globalization;
+    using System.Text;
 
     /// <summary>
     /// this is to do the actual work of setting new prices and stock levels.
@@ -14,18 +13,21 @@
     [ProtoContract]
     public class MessageConfig : MessageBase
     {
+        private const decimal MaxMissileSpeedLimit = 600;
+        private const decimal MaxShipSpeedLimit = 150000000m;
+
         #region properties
 
         /// <summary>
         /// The key config item to set.
         /// </summary>
-        [ProtoMember(1)]
+        [ProtoMember(201)]
         public string ConfigName;
 
         /// <summary>
         /// The value to set the config item to.
         /// </summary>
-        [ProtoMember(2)]
+        [ProtoMember(202)]
         public string Value;
 
         #endregion
@@ -65,6 +67,8 @@
                         ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.SmallShipMaxSpeed = ConfigurableSpeedComponentLogic.Instance.DefaultDefinitionValues.SmallShipMaxSpeed;
                         ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.EnableThrustRatio = false;
                         ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.ThrustRatio = 1;
+                        ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.MissileMinSpeed = ConfigurableSpeedComponentLogic.Instance.DefaultDefinitionValues.MissileMinSpeed;
+                        ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.MissileMaxSpeed = ConfigurableSpeedComponentLogic.Instance.DefaultDefinitionValues.MissileMaxSpeed;
                         ConfigurableSpeedComponentLogic.Instance.IsModified = true;
 
                         var msg = new StringBuilder();
@@ -90,14 +94,14 @@
                         decimal decimalTest;
                         if (decimal.TryParse(Value, NumberStyles.Any, CultureInfo.InvariantCulture, out decimalTest))
                         {
-                            if (decimalTest >= 1 && decimalTest <= 150000000m)
+                            if (decimalTest >= 1 && decimalTest <= MaxShipSpeedLimit)
                             {
                                 ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.LargeShipMaxSpeed = decimalTest;
                                 ConfigurableSpeedComponentLogic.Instance.IsModified = true;
 
                                 var msg = new StringBuilder();
                                 msg.AppendFormat("LargeShipMaxSpeed updated to: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.LargeShipMaxSpeed);
-                                msg.AppendFormat("SmallShipMaxSpeed is: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.SmallShipMaxSpeed);
+                                msg.AppendFormat("SmallShipMaxSpeed updated to: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.SmallShipMaxSpeed);
                                 msg.AppendLine();
                                 msg.AppendLine();
                                 msg.AppendLine("Once you have finished your changes, you must save the game and then restart it immediately for it to take effect.");
@@ -105,16 +109,15 @@
                                 msg.AppendLine("If you only save the game and do not restart, any player that connects will experience issues.");
                                 MessageClientDialogMessage.SendMessage(SenderSteamId, "ConfigSpeed", " ", msg.ToString());
 
-                                // Default values:
+                                // Default values. Not whitelisted:
                                 //VRage.Game.MyObjectBuilder_EnvironmentDefinition.Defaults.LargeShipMaxSpeed
                                 //VRage.Game.MyObjectBuilder_EnvironmentDefinition.Defaults.SmallShipMaxSpeed
-
                                 return;
                             }
                         }
                     }
 
-                    MessageClientTextMessage.SendMessage(SenderSteamId, "ConfigSpeed", "The new maximum ship speed limit can only be between {0:N0} and {1:N0}", 1, 150000000m);
+                    MessageClientTextMessage.SendMessage(SenderSteamId, "ConfigSpeed", "The new maximum ship speed limit can only be between {0:N0} and {1:N0}", 1, MaxShipSpeedLimit);
                     break;
 
                 #endregion
@@ -130,7 +133,7 @@
                         decimal decimalTest;
                         if (decimal.TryParse(Value, NumberStyles.Any, CultureInfo.InvariantCulture, out decimalTest))
                         {
-                            if (decimalTest >= 1 && decimalTest <= 150000000m)
+                            if (decimalTest >= 1 && decimalTest <= MaxShipSpeedLimit)
                             {
                                 ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.SmallShipMaxSpeed = decimalTest;
                                 ConfigurableSpeedComponentLogic.Instance.IsModified = true;
@@ -149,7 +152,40 @@
                         }
                     }
 
-                    MessageClientTextMessage.SendMessage(SenderSteamId, "ConfigSpeed", "The new maximum ship speed limit can only be between {0:N0} and {1:N0}", 1, 150000000m);
+                    MessageClientTextMessage.SendMessage(SenderSteamId, "ConfigSpeed", "The new maximum ship speed limit can only be between {0:N0} and {1:N0}", 1, MaxShipSpeedLimit);
+                    break;
+
+                #endregion
+
+                #region MaxAllSpeed
+
+                case "maxallspeed":
+                    if (!string.IsNullOrEmpty(Value))
+                    {
+                        decimal decimalTest;
+                        if (decimal.TryParse(Value, NumberStyles.Any, CultureInfo.InvariantCulture, out decimalTest))
+                        {
+                            if (decimalTest >= 1 && decimalTest <= MaxShipSpeedLimit)
+                            {
+                                ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.LargeShipMaxSpeed = decimalTest;
+                                ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.SmallShipMaxSpeed = decimalTest;
+                                ConfigurableSpeedComponentLogic.Instance.IsModified = true;
+
+                                var msg = new StringBuilder();
+                                msg.AppendFormat("LargeShipMaxSpeed updated to: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.LargeShipMaxSpeed);
+                                msg.AppendFormat("SmallShipMaxSpeed updated is: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.SmallShipMaxSpeed);
+                                msg.AppendLine();
+                                msg.AppendLine();
+                                msg.AppendLine("Once you have finished your changes, you must save the game and then restart it immediately for it to take effect.");
+                                msg.AppendLine();
+                                msg.AppendLine("If you only save the game and do not restart, any player that connects will experience issues.");
+                                MessageClientDialogMessage.SendMessage(SenderSteamId, "ConfigSpeed", " ", msg.ToString());
+                                return;
+                            }
+                        }
+                    }
+
+                    MessageClientTextMessage.SendMessage(SenderSteamId, "ConfigSpeed", "The new maximum ship speed limit can only be between {0:N0} and {1:N0}", 1, MaxShipSpeedLimit);
                     break;
 
                 #endregion
@@ -204,6 +240,80 @@
 
                 #endregion
 
+                #region MissileMin/MissileMax
+
+                case "missilemin":
+                case "missileminspeed":
+                    if (!string.IsNullOrEmpty(Value))
+                    {
+                        decimal decimalTest;
+                        if (decimal.TryParse(Value, NumberStyles.Any, CultureInfo.InvariantCulture, out decimalTest))
+                        {
+                            if (decimalTest >= 1 && decimalTest <= MaxMissileSpeedLimit)
+                            {
+                                if (decimalTest > ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.MissileMaxSpeed)
+                                {
+                                    MessageClientTextMessage.SendMessage(SenderSteamId, "ConfigSpeed", "The new minimum missile speed cannot be greater than the existing maximum of {0:N0}", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.MissileMaxSpeed);
+                                    return;
+                                }
+
+                                ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.MissileMinSpeed = decimalTest;
+                                ConfigurableSpeedComponentLogic.Instance.IsModified = true;
+
+                                var msg = new StringBuilder();
+                                msg.AppendFormat("MissileMinSpeed updated to: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.MissileMinSpeed);
+                                msg.AppendFormat("MissileMaxSpeed is: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.MissileMaxSpeed);
+                                msg.AppendLine();
+                                msg.AppendLine();
+                                msg.AppendLine("Once you have finished your changes, you must save the game and then restart it immediately for it to take effect.");
+                                msg.AppendLine();
+                                msg.AppendLine("If you only save the game and do not restart, any player that connects will experience issues.");
+                                MessageClientDialogMessage.SendMessage(SenderSteamId, "ConfigSpeed", " ", msg.ToString());
+                                return;
+                            }
+                        }
+                    }
+
+                    MessageClientTextMessage.SendMessage(SenderSteamId, "ConfigSpeed", "The new minimum missile speed limit can only be between {0:N0} and {1:N0}", 1, MaxMissileSpeedLimit);
+                    break;
+
+                case "missilemax":
+                case "missilemaxspeed":
+                    if (!string.IsNullOrEmpty(Value))
+                    {
+                        decimal decimalTest;
+                        if (decimal.TryParse(Value, NumberStyles.Any, CultureInfo.InvariantCulture, out decimalTest))
+                        {
+                            if (decimalTest >= 1 && decimalTest <= MaxMissileSpeedLimit)
+                            {
+                                if (decimalTest < ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.MissileMinSpeed)
+                                {
+                                    MessageClientTextMessage.SendMessage(SenderSteamId, "ConfigSpeed", "The new maximum missile speed cannot be less than the existing minimum of {0:N0}", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.MissileMinSpeed);
+                                    return;
+                                }
+
+                                ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.MissileMaxSpeed = decimalTest;
+                                ConfigurableSpeedComponentLogic.Instance.IsModified = true;
+
+                                var msg = new StringBuilder();
+                                msg.AppendFormat("MissileMinSpeed is: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.MissileMinSpeed);
+                                msg.AppendFormat("MissileMaxSpeed updated to: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.MissileMaxSpeed);
+                                msg.AppendLine();
+                                msg.AppendLine();
+                                msg.AppendLine("Once you have finished your changes, you must save the game and then restart it immediately for it to take effect.");
+                                msg.AppendLine();
+                                msg.AppendLine("If you only save the game and do not restart, any player that connects will experience issues.");
+                                MessageClientDialogMessage.SendMessage(SenderSteamId, "ConfigSpeed", " ", msg.ToString());
+                                return;
+                            }
+                        }
+                    }
+
+                    MessageClientTextMessage.SendMessage(SenderSteamId, "ConfigSpeed", "The new maximum missile speed limit can only be between {0:N0} and {1:N0}", 1, MaxMissileSpeedLimit);
+                    break;
+
+                #endregion
+
                 #region default
 
                 default:
@@ -214,6 +324,8 @@
                         msg.AppendFormat("  Maximum Small Ship speed: {0:N0} m/s\r\n", MyDefinitionManager.Static.EnvironmentDefinition.SmallShipMaxSpeed);
                         msg.AppendFormat("  Enable Thrust Ratio: {0}\r\n", ConfigurableSpeedComponentLogic.Instance.OldEnvironmentComponent.EnableThrustRatio ? "Yes" : "No");
                         msg.AppendFormat("  Thrust Ratio: x{0:N3}\r\n", ConfigurableSpeedComponentLogic.Instance.OldEnvironmentComponent.ThrustRatio);
+                        msg.AppendFormat("  MissileMinSpeed: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.OldEnvironmentComponent.MissileMinSpeed);
+                        msg.AppendFormat("  MissileMaxSpeed: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.OldEnvironmentComponent.MissileMaxSpeed);
                         msg.AppendLine();
 
                         if (ConfigurableSpeedComponentLogic.Instance.IsModified)
@@ -223,6 +335,8 @@
                             msg.AppendFormat("  Maximum Small Ship speed: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.SmallShipMaxSpeed);
                             msg.AppendFormat("  Enable Thrust Ratio: {0}\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.EnableThrustRatio ? "Yes" : "No");
                             msg.AppendFormat("  Thrust Ratio: x{0:N3}\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.ThrustRatio);
+                            msg.AppendFormat("  MissileMinSpeed: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.MissileMinSpeed);
+                            msg.AppendFormat("  MissileMaxSpeed: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.MissileMaxSpeed);
                             msg.AppendLine();
                             msg.AppendLine("You must save and restart/reload the game to apply these settings.");
                         }
@@ -233,7 +347,7 @@
 
                         msg.AppendLine();
                         msg.AppendLine();
-                        msg.AppendFormat("Any new maximum ship speed limit can be set from {0:N0} to {1:N0} m/s.\r\n", 1, 150000000m);
+                        msg.AppendFormat("Any new maximum ship speed limit can be set from {0:N0} to {1:N0} m/s.\r\n", 1, MaxShipSpeedLimit);
                         msg.AppendLine();
                         ShowExamples(msg);
 
@@ -241,7 +355,7 @@
                     }
                     break;
 
-                #endregion
+                    #endregion
             }
         }
 
@@ -269,7 +383,9 @@
             msg.AppendLine("  /configspeed SmallShipSpeed 420");
             msg.AppendLine("  /configspeed EnableThrustRatio on");
             msg.AppendLine("  /configspeed ThrustRatio 10");
-
+            msg.AppendLine("  /maxspeed 200");
+            msg.AppendLine("  /configspeed MissileMin 200");
+            msg.AppendLine("  /configspeed MissileMax 300");
         }
     }
 }

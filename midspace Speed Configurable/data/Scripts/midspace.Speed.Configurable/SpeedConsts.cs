@@ -15,7 +15,7 @@
         /// communications classes. A Player will connect to the server, and will automatically download version 2.
         /// We would now have a Client running newer communication classes trying to talk to the Server with older classes.
         /// </remarks>
-        public const int ModCommunicationVersion = 20170129; // This will be based on the date of update.
+        public const int ModCommunicationVersion = 20171125; // This will be based on the date of update.
 
         /// <summary>
         /// The is the Id which this mod registers iteself for sending and receiving messages through SE. 
