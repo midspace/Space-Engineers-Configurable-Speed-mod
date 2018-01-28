@@ -15,6 +15,7 @@
     {
         private const decimal MaxMissileSpeedLimit = 600;
         private const decimal MaxShipSpeedLimit = 150000000m;
+        private const decimal MaxAutoPilotSpeedLimit = 5000m;
 
         #region properties
 
@@ -69,6 +70,7 @@
                         ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.ThrustRatio = 1;
                         ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.MissileMinSpeed = ConfigurableSpeedComponentLogic.Instance.DefaultDefinitionValues.MissileMinSpeed;
                         ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.MissileMaxSpeed = ConfigurableSpeedComponentLogic.Instance.DefaultDefinitionValues.MissileMaxSpeed;
+                        ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.RemoteControlMaxSpeed = ConfigurableSpeedComponentLogic.Instance.DefaultDefinitionValues.RemoteControlMaxSpeed;
                         ConfigurableSpeedComponentLogic.Instance.IsModified = true;
 
                         var msg = new StringBuilder();
@@ -101,7 +103,7 @@
 
                                 var msg = new StringBuilder();
                                 msg.AppendFormat("LargeShipMaxSpeed updated to: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.LargeShipMaxSpeed);
-                                msg.AppendFormat("SmallShipMaxSpeed updated to: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.SmallShipMaxSpeed);
+                                msg.AppendFormat("SmallShipMaxSpeed is: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.SmallShipMaxSpeed);
                                 msg.AppendLine();
                                 msg.AppendLine();
                                 msg.AppendLine("Once you have finished your changes, you must save the game and then restart it immediately for it to take effect.");
@@ -173,7 +175,7 @@
 
                                 var msg = new StringBuilder();
                                 msg.AppendFormat("LargeShipMaxSpeed updated to: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.LargeShipMaxSpeed);
-                                msg.AppendFormat("SmallShipMaxSpeed updated is: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.SmallShipMaxSpeed);
+                                msg.AppendFormat("SmallShipMaxSpeed updated to: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.SmallShipMaxSpeed);
                                 msg.AppendLine();
                                 msg.AppendLine();
                                 msg.AppendLine("Once you have finished your changes, you must save the game and then restart it immediately for it to take effect.");
@@ -314,6 +316,43 @@
 
                 #endregion
 
+                #region RemoteControlMaxSpeed
+
+                case "autopilotspeed":
+                case "autopilotlimit":
+                case "autopilot":
+                case "remoteautopilotlimit":
+                case "remoteautopilotspeed":
+                case "remoteautopilot":
+                case "remotecontrolmaxspeed":
+                    if (!string.IsNullOrEmpty(Value))
+                    {
+                        decimal decimalTest;
+                        if (decimal.TryParse(Value, NumberStyles.Any, CultureInfo.InvariantCulture, out decimalTest))
+                        {
+                            if (decimalTest >= 1 && decimalTest <= MaxAutoPilotSpeedLimit)
+                            {
+                                ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.RemoteControlMaxSpeed = decimalTest;
+                                ConfigurableSpeedComponentLogic.Instance.IsModified = true;
+
+                                var msg = new StringBuilder();
+                                msg.AppendFormat("AutoPilotLimit updated to: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.RemoteControlMaxSpeed);
+                                msg.AppendLine();
+                                msg.AppendLine();
+                                msg.AppendLine("Once you have finished your changes, you must save the game and then restart it immediately for it to take effect.");
+                                msg.AppendLine();
+                                msg.AppendLine("If you only save the game and do not restart, any player that connects will experience issues.");
+                                MessageClientDialogMessage.SendMessage(SenderSteamId, "ConfigSpeed", " ", msg.ToString());
+                                return;
+                            }
+                        }
+                    }
+
+                    MessageClientTextMessage.SendMessage(SenderSteamId, "ConfigSpeed", "The new auto pilot speed limit can only be between {0:N0} and {1:N0}", 1, MaxAutoPilotSpeedLimit);
+                    break;
+
+                #endregion
+
                 #region default
 
                 default:
@@ -326,6 +365,7 @@
                         msg.AppendFormat("  Thrust Ratio: x{0:N3}\r\n", ConfigurableSpeedComponentLogic.Instance.OldEnvironmentComponent.ThrustRatio);
                         msg.AppendFormat("  MissileMinSpeed: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.OldEnvironmentComponent.MissileMinSpeed);
                         msg.AppendFormat("  MissileMaxSpeed: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.OldEnvironmentComponent.MissileMaxSpeed);
+                        msg.AppendFormat("  AutoPilotLimit: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.OldEnvironmentComponent.RemoteControlMaxSpeed);
                         msg.AppendLine();
 
                         if (ConfigurableSpeedComponentLogic.Instance.IsModified)
@@ -337,6 +377,7 @@
                             msg.AppendFormat("  Thrust Ratio: x{0:N3}\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.ThrustRatio);
                             msg.AppendFormat("  MissileMinSpeed: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.MissileMinSpeed);
                             msg.AppendFormat("  MissileMaxSpeed: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.MissileMaxSpeed);
+                            msg.AppendFormat("  AutoPilotLimit: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.RemoteControlMaxSpeed);
                             msg.AppendLine();
                             msg.AppendLine("You must save and restart/reload the game to apply these settings.");
                         }

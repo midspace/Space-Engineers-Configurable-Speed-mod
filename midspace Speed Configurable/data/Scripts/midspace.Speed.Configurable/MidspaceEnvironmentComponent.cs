@@ -51,6 +51,9 @@
         [ProtoMember(13)]
         public decimal MissileMaxSpeed { get; set; }
 
+        [ProtoMember(14)]
+        public decimal RemoteControlMaxSpeed { get; set; }
+
         /// <summary>
         /// Make a copy of all values within <see cref="MidspaceEnvironmentComponent"/>.
         /// </summary>
@@ -71,6 +74,7 @@
                 //Realism = Realism,
                 MissileMinSpeed = MissileMinSpeed,
                 MissileMaxSpeed = MissileMaxSpeed,
+                RemoteControlMaxSpeed = RemoteControlMaxSpeed,
             };
         }
     }

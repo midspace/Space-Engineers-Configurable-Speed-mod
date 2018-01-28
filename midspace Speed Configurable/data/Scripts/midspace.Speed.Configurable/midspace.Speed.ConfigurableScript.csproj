@@ -92,6 +92,7 @@
     <Compile Include="ConfigurableSpeedComponentLogic.cs" />
     <Compile Include="ConnectionHelper.cs" />
     <Compile Include="Extensions.cs" />
+    <Compile Include="RemoteControlLogicSpeedLimit.cs" />
     <Compile Include="SpeedConsts.cs" />
     <Compile Include="Messages\MessageBase.cs" />
     <Compile Include="Messages\MessageClientDialogMessage.cs" />

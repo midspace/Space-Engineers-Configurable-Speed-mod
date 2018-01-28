@@ -19,7 +19,7 @@ namespace midspace.Speed.ConfigurableScript
         /// <summary>
         /// pattern defines speedconfig commands.
         /// </summary>
-        const string ConfigSpeedPattern = @"^(?<command>/configspeed)(?:\s+(?<config>((ResetAll)|(LargeShipMaxSpeed)|(LargeShipSpeed)|(LargeShip)|(Large)|(SmallShipMaxSpeed)|(SmallShipSpeed)|(SmallShip)|(Small)|(ThrustRatio)|(EnableThrustRatio)|(LockThrustRatio)|(MaxAllSpeed)|(MissileMinSpeed)|(MissileMin)|(MissileMaxSpeed)|(MissileMax)))(?:\s+(?<value>.+))?)?";
+        const string ConfigSpeedPattern = @"^(?<command>/configspeed)(?:\s+(?<config>((ResetAll)|(LargeShipMaxSpeed)|(LargeShipSpeed)|(LargeShip)|(Large)|(SmallShipMaxSpeed)|(SmallShipSpeed)|(SmallShip)|(Small)|(ThrustRatio)|(EnableThrustRatio)|(LockThrustRatio)|(MaxAllSpeed)|(MissileMinSpeed)|(MissileMin)|(MissileMaxSpeed)|(MissileMax)|(autopilotspeed)|(autopilotlimit)|(autopilot)|(remoteautopilotlimit)|(remoteautopilotspeed)|(remoteautopilot)|(remotecontrolmaxspeed)))(?:\s+(?<value>.+))?)?";
         const string ShortSpeedPattern = @"^(?<command>(/maxspeed))(?:\s+(?<value>.+))";
 
         #endregion
@@ -132,6 +132,9 @@ namespace midspace.Speed.ConfigurableScript
 
         public override void Init(MyObjectBuilder_SessionComponent sessionComponent)
         {
+            if (Instance == null)
+                Instance = this;
+
             try
             {
                 // This Variables are already loaded by this point, but unaccessible because we need Utilities.
@@ -152,6 +155,7 @@ namespace midspace.Speed.ConfigurableScript
                     SmallShipMaxSpeed = (decimal)MyDefinitionManager.Static.EnvironmentDefinition.SmallShipMaxSpeed,
                     MissileMinSpeed = (decimal)(ammoDefinition?.MissileInitialSpeed ?? 0),
                     MissileMaxSpeed = (decimal)(ammoDefinition?.DesiredSpeed ?? 0),
+                    RemoteControlMaxSpeed = 100, // game hardcoded default in MyRemoteControl.CreateTerminalControls()
                 };
 
                 // Load the speed on both server and client.
@@ -176,6 +180,8 @@ namespace midspace.Speed.ConfigurableScript
                             EnvironmentComponent.MissileMinSpeed = DefaultDefinitionValues.MissileMinSpeed;
                         if (EnvironmentComponent.MissileMaxSpeed == 0)
                             EnvironmentComponent.MissileMaxSpeed = DefaultDefinitionValues.MissileMaxSpeed;
+                        if (EnvironmentComponent.RemoteControlMaxSpeed == 0)
+                            EnvironmentComponent.RemoteControlMaxSpeed = DefaultDefinitionValues.RemoteControlMaxSpeed;
 
                         // Apply settings.
                         if (EnvironmentComponent.LargeShipMaxSpeed > 0)
@@ -251,6 +257,7 @@ namespace midspace.Speed.ConfigurableScript
                     }
                 }
 
+                // creates a new EnvironmentComponent if one was not found in the game Variables.
                 EnvironmentComponent = new MidspaceEnvironmentComponent
                 {
                     Version = SpeedConsts.ModCommunicationVersion,
@@ -259,7 +266,8 @@ namespace midspace.Speed.ConfigurableScript
                     EnableThrustRatio = false,
                     MissileMinSpeed = (decimal)(ammoDefinition?.MissileInitialSpeed ?? 0),
                     MissileMaxSpeed = (decimal)(ammoDefinition?.DesiredSpeed ?? 0),
-                    ThrustRatio = 1
+                    ThrustRatio = 1,
+                    RemoteControlMaxSpeed = 100
                 };
                 OldEnvironmentComponent = EnvironmentComponent.Clone();
             }
