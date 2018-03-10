@@ -14,8 +14,12 @@
     public class MessageConfig : MessageBase
     {
         private const decimal MaxMissileSpeedLimit = 600;
+        private const decimal MinThrustRatio = 0.1m;
+        private const decimal MaxThrustRatio = 1000m;
         private const decimal MaxShipSpeedLimit = 150000000m;
         private const decimal MaxAutoPilotSpeedLimit = 5000m;
+        private const decimal MinContainerDropDeployHeight = 200m; // this is based on existing Container prefabs.
+        private const decimal MaxContainerDropDeployHeight = 1000m;
 
         #region properties
 
@@ -71,6 +75,7 @@
                         ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.MissileMinSpeed = ConfigurableSpeedComponentLogic.Instance.DefaultDefinitionValues.MissileMinSpeed;
                         ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.MissileMaxSpeed = ConfigurableSpeedComponentLogic.Instance.DefaultDefinitionValues.MissileMaxSpeed;
                         ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.RemoteControlMaxSpeed = ConfigurableSpeedComponentLogic.Instance.DefaultDefinitionValues.RemoteControlMaxSpeed;
+                        ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.ContainerDropDeployHeight = ConfigurableSpeedComponentLogic.Instance.DefaultDefinitionValues.ContainerDropDeployHeight;
                         ConfigurableSpeedComponentLogic.Instance.IsModified = true;
 
                         var msg = new StringBuilder();
@@ -219,7 +224,7 @@
                         decimal decimalTest;
                         if (decimal.TryParse(Value, NumberStyles.Any, CultureInfo.InvariantCulture, out decimalTest))
                         {
-                            if (decimalTest >= 0.1m && decimalTest <= 1000m)
+                            if (decimalTest >= MinThrustRatio && decimalTest <= MaxThrustRatio)
                             {
                                 ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.ThrustRatio = decimalTest;
                                 ConfigurableSpeedComponentLogic.Instance.IsModified = true;
@@ -237,7 +242,7 @@
                         }
                     }
 
-                    MessageClientTextMessage.SendMessage(SenderSteamId, "ConfigSpeed", "The ThrustRatio can only be between {0:N0} and {1:N0}", 0.1m, 1000m);
+                    MessageClientTextMessage.SendMessage(SenderSteamId, "ConfigSpeed", "The ThrustRatio can only be between {0:N0} and {1:N0}", MinThrustRatio, MaxThrustRatio);
                     break;
 
                 #endregion
@@ -353,31 +358,67 @@
 
                 #endregion
 
+                #region ContainerDropDeployHeight
+
+                case "containerdropdeployheight":
+                case "containerdeployheight":
+                case "dropdeployheight":
+                case "dropheight":
+                    if (!string.IsNullOrEmpty(Value))
+                    {
+                        decimal decimalTest;
+                        if (decimal.TryParse(Value, NumberStyles.Any, CultureInfo.InvariantCulture, out decimalTest))
+                        {
+                            if (decimalTest >= MinContainerDropDeployHeight && decimalTest <= MaxContainerDropDeployHeight)
+                            {
+                                ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.ContainerDropDeployHeight = decimalTest;
+                                ConfigurableSpeedComponentLogic.Instance.IsModified = true;
+
+                                var msg = new StringBuilder();
+                                msg.AppendFormat("ContainerDeployHeight updated to: {0:N0} m\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.ContainerDropDeployHeight);
+                                msg.AppendLine();
+                                msg.AppendLine();
+                                msg.AppendLine("Once you have finished your changes, you must save the game and then restart it immediately for it to take effect.");
+                                msg.AppendLine();
+                                msg.AppendLine("If you only save the game and do not restart, any player that connects will experience issues.");
+                                MessageClientDialogMessage.SendMessage(SenderSteamId, "ConfigSpeed", " ", msg.ToString());
+                                return;
+                            }
+                        }
+                    }
+
+                    MessageClientTextMessage.SendMessage(SenderSteamId, "ConfigSpeed", "The new drop container open limit can only be between {0:N0} and {1:N0}", MinContainerDropDeployHeight, MaxContainerDropDeployHeight);
+                    break;
+
+                #endregion
+
                 #region default
 
                 default:
                     {
                         var msg = new StringBuilder();
                         msg.AppendLine("Current settings are:");
-                        msg.AppendFormat("  Maximum Large Ship speed: {0:N0} m/s\r\n", MyDefinitionManager.Static.EnvironmentDefinition.LargeShipMaxSpeed);
-                        msg.AppendFormat("  Maximum Small Ship speed: {0:N0} m/s\r\n", MyDefinitionManager.Static.EnvironmentDefinition.SmallShipMaxSpeed);
-                        msg.AppendFormat("  Enable Thrust Ratio: {0}\r\n", ConfigurableSpeedComponentLogic.Instance.OldEnvironmentComponent.EnableThrustRatio ? "Yes" : "No");
-                        msg.AppendFormat("  Thrust Ratio: x{0:N3}\r\n", ConfigurableSpeedComponentLogic.Instance.OldEnvironmentComponent.ThrustRatio);
-                        msg.AppendFormat("  MissileMinSpeed: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.OldEnvironmentComponent.MissileMinSpeed);
-                        msg.AppendFormat("  MissileMaxSpeed: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.OldEnvironmentComponent.MissileMaxSpeed);
-                        msg.AppendFormat("  AutoPilotLimit: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.OldEnvironmentComponent.RemoteControlMaxSpeed);
+                        msg.AppendLine($"  Maximum Large Ship speed: {MyDefinitionManager.Static.EnvironmentDefinition.LargeShipMaxSpeed:N0} m/s");
+                        msg.AppendLine($"  Maximum Small Ship speed: {MyDefinitionManager.Static.EnvironmentDefinition.SmallShipMaxSpeed:N0} m/s");
+                        msg.AppendLine($"  Enable Thrust Ratio: {(ConfigurableSpeedComponentLogic.Instance.OldEnvironmentComponent.EnableThrustRatio ? "Yes" : "No")}");
+                        msg.AppendLine($"  Thrust Ratio: x{ConfigurableSpeedComponentLogic.Instance.OldEnvironmentComponent.ThrustRatio:N3}       (Range: {MinThrustRatio:N3}-{MaxThrustRatio:N3})");
+                        msg.AppendLine($"  MissileMinSpeed: {ConfigurableSpeedComponentLogic.Instance.OldEnvironmentComponent.MissileMinSpeed:N0} m/s       (Range: 1-{MaxMissileSpeedLimit:N0})");
+                        msg.AppendLine($"  MissileMaxSpeed: {ConfigurableSpeedComponentLogic.Instance.OldEnvironmentComponent.MissileMaxSpeed:N0} m/s       (Range: 1-{MaxMissileSpeedLimit:N0})");
+                        msg.AppendLine($"  AutoPilotLimit: {ConfigurableSpeedComponentLogic.Instance.OldEnvironmentComponent.RemoteControlMaxSpeed:N0} m/s      (Range: 1-{MaxAutoPilotSpeedLimit:N0})");
+                        msg.AppendLine($"  ContainerDeployHeight: {ConfigurableSpeedComponentLogic.Instance.OldEnvironmentComponent.ContainerDropDeployHeight:N0} m      (Range: {MinContainerDropDeployHeight:N0}-{MaxContainerDropDeployHeight:N0})");
                         msg.AppendLine();
 
                         if (ConfigurableSpeedComponentLogic.Instance.IsModified)
                         {
                             msg.AppendLine("The new settings have been set to:");
-                            msg.AppendFormat("  Maximum Large Ship speed: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.LargeShipMaxSpeed);
-                            msg.AppendFormat("  Maximum Small Ship speed: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.SmallShipMaxSpeed);
-                            msg.AppendFormat("  Enable Thrust Ratio: {0}\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.EnableThrustRatio ? "Yes" : "No");
-                            msg.AppendFormat("  Thrust Ratio: x{0:N3}\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.ThrustRatio);
-                            msg.AppendFormat("  MissileMinSpeed: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.MissileMinSpeed);
-                            msg.AppendFormat("  MissileMaxSpeed: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.MissileMaxSpeed);
-                            msg.AppendFormat("  AutoPilotLimit: {0:N0} m/s\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.RemoteControlMaxSpeed);
+                            msg.AppendLine($"  Maximum Large Ship speed: {ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.LargeShipMaxSpeed:N0} m/s");
+                            msg.AppendLine($"  Maximum Small Ship speed: {ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.SmallShipMaxSpeed:N0} m/s");
+                            msg.AppendLine($"  Enable Thrust Ratio: {(ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.EnableThrustRatio ? "Yes" : "No")}");
+                            msg.AppendLine($"  Thrust Ratio: x{ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.ThrustRatio:N3}");
+                            msg.AppendLine($"  MissileMinSpeed: {ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.MissileMinSpeed:N0} m/s");
+                            msg.AppendLine($"  MissileMaxSpeed: {ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.MissileMaxSpeed:N0} m/s");
+                            msg.AppendLine($"  AutoPilotLimit: {ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.RemoteControlMaxSpeed:N0} m/s");
+                            msg.AppendLine($"  ContainerDeployHeight: {ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.ContainerDropDeployHeight:N0} m");
                             msg.AppendLine();
                             msg.AppendLine("You must save and restart/reload the game to apply these settings.");
                         }
@@ -427,6 +468,7 @@
             msg.AppendLine("  /maxspeed 200");
             msg.AppendLine("  /configspeed MissileMin 200");
             msg.AppendLine("  /configspeed MissileMax 300");
+            msg.AppendLine("  /configspeed ContainerDeployHeight 600");
         }
     }
 }

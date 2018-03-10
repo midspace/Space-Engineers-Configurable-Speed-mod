@@ -8,6 +8,7 @@ namespace midspace.Speed.ConfigurableScript
     using System.Collections.Generic;
     using System.Linq;
     using System.Text.RegularExpressions;
+    using VRage.Collections;
     using VRage.Game;
     using VRage.Game.Components;
 
@@ -19,8 +20,9 @@ namespace midspace.Speed.ConfigurableScript
         /// <summary>
         /// pattern defines speedconfig commands.
         /// </summary>
-        const string ConfigSpeedPattern = @"^(?<command>/configspeed)(?:\s+(?<config>((ResetAll)|(LargeShipMaxSpeed)|(LargeShipSpeed)|(LargeShip)|(Large)|(SmallShipMaxSpeed)|(SmallShipSpeed)|(SmallShip)|(Small)|(ThrustRatio)|(EnableThrustRatio)|(LockThrustRatio)|(MaxAllSpeed)|(MissileMinSpeed)|(MissileMin)|(MissileMaxSpeed)|(MissileMax)|(autopilotspeed)|(autopilotlimit)|(autopilot)|(remoteautopilotlimit)|(remoteautopilotspeed)|(remoteautopilot)|(remotecontrolmaxspeed)))(?:\s+(?<value>.+))?)?";
-        const string ShortSpeedPattern = @"^(?<command>(/maxspeed))(?:\s+(?<value>.+))";
+        private const string ConfigSpeedPattern = @"^(?<command>/configspeed)(?:\s+(?<config>((ResetAll)|(LargeShipMaxSpeed)|(LargeShipSpeed)|(LargeShip)|(Large)|(SmallShipMaxSpeed)|(SmallShipSpeed)|(SmallShip)|(Small)|(ThrustRatio)|(EnableThrustRatio)|(LockThrustRatio)|(MaxAllSpeed)|(MissileMinSpeed)|(MissileMin)|(MissileMaxSpeed)|(MissileMax)|(autopilotspeed)|(autopilotlimit)|(autopilot)|(remoteautopilotlimit)|(remoteautopilotspeed)|(remoteautopilot)|(remotecontrolmaxspeed)|(containerdropdeployheight)|(containerdeployheight)|(dropdeployheight)|(dropheight)))(?:\s+(?<value>.+))?)?";
+
+        private const string ShortSpeedPattern = @"^(?<command>(/maxspeed))(?:\s+(?<value>.+))";
 
         #endregion
 
@@ -156,6 +158,7 @@ namespace midspace.Speed.ConfigurableScript
                     MissileMinSpeed = (decimal)(ammoDefinition?.MissileInitialSpeed ?? 0),
                     MissileMaxSpeed = (decimal)(ammoDefinition?.DesiredSpeed ?? 0),
                     RemoteControlMaxSpeed = 100, // game hardcoded default in MyRemoteControl.CreateTerminalControls()
+                    ContainerDropDeployHeight = 200,
                 };
 
                 // Load the speed on both server and client.
@@ -182,6 +185,8 @@ namespace midspace.Speed.ConfigurableScript
                             EnvironmentComponent.MissileMaxSpeed = DefaultDefinitionValues.MissileMaxSpeed;
                         if (EnvironmentComponent.RemoteControlMaxSpeed == 0)
                             EnvironmentComponent.RemoteControlMaxSpeed = DefaultDefinitionValues.RemoteControlMaxSpeed;
+                        if (EnvironmentComponent.ContainerDropDeployHeight == 0)
+                            EnvironmentComponent.ContainerDropDeployHeight = 200;
 
                         // Apply settings.
                         if (EnvironmentComponent.LargeShipMaxSpeed > 0)
@@ -252,6 +257,30 @@ namespace midspace.Speed.ConfigurableScript
                         if (ammoDefinition != null && EnvironmentComponent.MissileMaxSpeed > 0)
                             ammoDefinition.DesiredSpeed = (float)EnvironmentComponent.MissileMaxSpeed;
 
+                        #region ContainerDropDeployHeight
+
+                        // We're basically changing the ContainerDrop prefabs that are loaded in memory before any of them are spawned.
+                        // This is not my preferred approach, as these could be altered (by other mods) or reset (reload from disc by the game or mods).
+                        // The prefered approach is to modify the chute.DeployHeight after a container is spawned, but it is not whitelisted.
+                        DictionaryReader<string, MyDropContainerDefinition> dropContainers = MyDefinitionManager.Static.GetDropContainerDefinitions();
+                        foreach (var kvp in dropContainers)
+                        {
+                            foreach (MyObjectBuilder_CubeGrid grid in kvp.Value.Prefab.CubeGrids)
+                            {
+                                foreach (MyObjectBuilder_CubeBlock block in grid.CubeBlocks)
+                                {
+                                    MyObjectBuilder_Parachute chute = block as MyObjectBuilder_Parachute;
+                                    if (chute != null)
+                                    {
+                                        if (chute.DeployHeight < (float)EnvironmentComponent.ContainerDropDeployHeight)
+                                            chute.DeployHeight = (float)EnvironmentComponent.ContainerDropDeployHeight;
+                                    }
+                                }
+                            }
+                        }
+
+                        #endregion
+
                         OldEnvironmentComponent = EnvironmentComponent.Clone();
                         return;
                     }
@@ -267,7 +296,8 @@ namespace midspace.Speed.ConfigurableScript
                     MissileMinSpeed = (decimal)(ammoDefinition?.MissileInitialSpeed ?? 0),
                     MissileMaxSpeed = (decimal)(ammoDefinition?.DesiredSpeed ?? 0),
                     ThrustRatio = 1,
-                    RemoteControlMaxSpeed = 100
+                    RemoteControlMaxSpeed = 100,
+                    ContainerDropDeployHeight = 200
                 };
                 OldEnvironmentComponent = EnvironmentComponent.Clone();
             }
