@@ -20,7 +20,7 @@ namespace midspace.Speed.ConfigurableScript
         /// <summary>
         /// pattern defines speedconfig commands.
         /// </summary>
-        private const string ConfigSpeedPattern = @"^(?<command>/configspeed)(?:\s+(?<config>((ResetAll)|(LargeShipMaxSpeed)|(LargeShipSpeed)|(LargeShip)|(Large)|(SmallShipMaxSpeed)|(SmallShipSpeed)|(SmallShip)|(Small)|(ThrustRatio)|(EnableThrustRatio)|(LockThrustRatio)|(MaxAllSpeed)|(MissileMinSpeed)|(MissileMin)|(MissileMaxSpeed)|(MissileMax)|(autopilotspeed)|(autopilotlimit)|(autopilot)|(remoteautopilotlimit)|(remoteautopilotspeed)|(remoteautopilot)|(remotecontrolmaxspeed)|(containerdropdeployheight)|(containerdeployheight)|(dropdeployheight)|(dropheight)))(?:\s+(?<value>.+))?)?";
+        private const string ConfigSpeedPattern = @"^(?<command>/configspeed)(?:\s+(?<config>((ResetAll)|(LargeShipMaxSpeed)|(LargeShipSpeed)|(LargeShip)|(Large)|(SmallShipMaxSpeed)|(SmallShipSpeed)|(SmallShip)|(Small)|(ThrustRatio)|(EnableThrustRatio)|(LockThrustRatio)|(MaxAllSpeed)|(MissileMinSpeed)|(MissileMin)|(MissileMaxSpeed)|(MissileMax)|(autopilotspeed)|(autopilotlimit)|(autopilot)|(remoteautopilotlimit)|(remoteautopilotspeed)|(remoteautopilot)|(remotecontrolmaxspeed)|(containerdropdeployheight)|(containerdeployheight)|(dropdeployheight)|(dropheight)|(respawnshipdeployheight)|(respawndeployheight)|(respawnheight)))(?:\s+(?<value>.+))?)?";
 
         private const string ShortSpeedPattern = @"^(?<command>(/maxspeed))(?:\s+(?<value>.+))";
 
@@ -126,6 +126,7 @@ namespace midspace.Speed.ConfigurableScript
 
             ServerLogger.WriteStart("RegisterMessageHandler");
             MyAPIGateway.Multiplayer.RegisterMessageHandler(SpeedConsts.ConnectionId, _messageHandler);
+            //MyAPIGateway.Entities.OnEntityAdd += Entities_OnEntityAdd;
 
             ServerLogger.Flush();
         }
@@ -158,7 +159,8 @@ namespace midspace.Speed.ConfigurableScript
                     MissileMinSpeed = (decimal)(ammoDefinition?.MissileInitialSpeed ?? 0),
                     MissileMaxSpeed = (decimal)(ammoDefinition?.DesiredSpeed ?? 0),
                     RemoteControlMaxSpeed = 100, // game hardcoded default in MyRemoteControl.CreateTerminalControls()
-                    ContainerDropDeployHeight = 200,
+                    ContainerDropDeployHeight = MessageConfig.DefaultContainerDropDeployHeight,
+                    RespawnShipDeployHeight = MessageConfig.DefaultRespawnShipDeployHeight
                 };
 
                 // Load the speed on both server and client.
@@ -186,7 +188,9 @@ namespace midspace.Speed.ConfigurableScript
                         if (EnvironmentComponent.RemoteControlMaxSpeed == 0)
                             EnvironmentComponent.RemoteControlMaxSpeed = DefaultDefinitionValues.RemoteControlMaxSpeed;
                         if (EnvironmentComponent.ContainerDropDeployHeight == 0)
-                            EnvironmentComponent.ContainerDropDeployHeight = 200;
+                            EnvironmentComponent.ContainerDropDeployHeight = MessageConfig.DefaultContainerDropDeployHeight;
+                        if (EnvironmentComponent.RespawnShipDeployHeight == 0)
+                            EnvironmentComponent.RespawnShipDeployHeight = MessageConfig.DefaultRespawnShipDeployHeight;
 
                         // Apply settings.
                         if (EnvironmentComponent.LargeShipMaxSpeed > 0)
@@ -235,7 +239,7 @@ namespace midspace.Speed.ConfigurableScript
                                     //thrustBlock.EffectivenessAtMaxInfluence = 0.0f;   // 0.3
                                 }
                                 */
-                                thrustBlock.ForceMagnitude *= (float) EnvironmentComponent.ThrustRatio;
+                                thrustBlock.ForceMagnitude *= (float)EnvironmentComponent.ThrustRatio;
                             }
                         }
 
@@ -281,6 +285,28 @@ namespace midspace.Speed.ConfigurableScript
 
                         #endregion
 
+                        #region RespawnShipDeployHeight
+
+                        DictionaryReader<string, MyRespawnShipDefinition> respawnShips = MyDefinitionManager.Static.GetRespawnShipDefinitions();
+
+                        foreach (var kvp in respawnShips)
+                        {
+                            foreach (MyObjectBuilder_CubeGrid grid in kvp.Value.Prefab.CubeGrids)
+                            {
+                                foreach (MyObjectBuilder_CubeBlock block in grid.CubeBlocks)
+                                {
+                                    MyObjectBuilder_Parachute chute = block as MyObjectBuilder_Parachute;
+                                    if (chute != null)
+                                    {
+                                        if (chute.DeployHeight < (float)EnvironmentComponent.RespawnShipDeployHeight)
+                                            chute.DeployHeight = (float)EnvironmentComponent.RespawnShipDeployHeight;
+                                    }
+                                }
+                            }
+                        }
+
+                        #endregion
+
                         OldEnvironmentComponent = EnvironmentComponent.Clone();
                         return;
                     }
@@ -297,7 +323,8 @@ namespace midspace.Speed.ConfigurableScript
                     MissileMaxSpeed = (decimal)(ammoDefinition?.DesiredSpeed ?? 0),
                     ThrustRatio = 1,
                     RemoteControlMaxSpeed = 100,
-                    ContainerDropDeployHeight = 200
+                    ContainerDropDeployHeight = MessageConfig.DefaultContainerDropDeployHeight,
+                    RespawnShipDeployHeight = MessageConfig.DefaultRespawnShipDeployHeight
                 };
                 OldEnvironmentComponent = EnvironmentComponent.Clone();
             }
@@ -340,7 +367,7 @@ namespace midspace.Speed.ConfigurableScript
             {
                 ServerLogger.WriteStop("UnregisterMessageHandler");
                 MyAPIGateway.Multiplayer.UnregisterMessageHandler(SpeedConsts.ConnectionId, _messageHandler);
-
+                //MyAPIGateway.Entities.OnEntityAdd -= Entities_OnEntityAdd;
 
                 ServerLogger.WriteStop("Log Closed");
                 ServerLogger.Terminate();
@@ -421,5 +448,24 @@ namespace midspace.Speed.ConfigurableScript
         }
 
         #endregion command list
+
+        //private void Entities_OnEntityAdd(IMyEntity obj)
+        //{
+        //    if (obj is IMyCubeGrid && obj.DisplayName.StartsWith("Container MK-"))
+        //    {
+        //        IMyCubeGrid cubeGrid = (IMyCubeGrid)obj;
+
+        //        var blocks = new List<IMySlimBlock>();
+        //        cubeGrid.GetBlocks(blocks, f => f.FatBlock is IMyParachute);
+
+        //        foreach (var block in blocks)
+        //        {
+        //            IMyParachute chute = (IMyParachute)block.FatBlock;
+        //            //if (chute.Atmosphere > 0)
+        //            MyAPIGateway.Utilities.InvokeOnGameThread(() => { chute.OpenDoor(); });
+        //            // MyParachute.DeployHeight is not whitelisted
+        //        }
+        //    }
+        //}
     }
 }

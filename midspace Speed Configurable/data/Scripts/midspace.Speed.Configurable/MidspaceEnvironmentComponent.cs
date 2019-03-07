@@ -57,6 +57,9 @@
         [ProtoMember(15)]
         public decimal ContainerDropDeployHeight { get; set; }
 
+        [ProtoMember(16)]
+        public decimal RespawnShipDeployHeight { get; set; }
+
         /// <summary>
         /// Make a copy of all values within <see cref="MidspaceEnvironmentComponent"/>.
         /// </summary>
@@ -79,6 +82,7 @@
                 MissileMaxSpeed = MissileMaxSpeed,
                 RemoteControlMaxSpeed = RemoteControlMaxSpeed,
                 ContainerDropDeployHeight = ContainerDropDeployHeight,
+                RespawnShipDeployHeight = RespawnShipDeployHeight,
             };
         }
     }

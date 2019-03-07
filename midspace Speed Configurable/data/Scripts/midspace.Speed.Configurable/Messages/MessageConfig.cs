@@ -18,8 +18,12 @@
         private const decimal MaxThrustRatio = 1000m;
         private const decimal MaxShipSpeedLimit = 150000000m;
         private const decimal MaxAutoPilotSpeedLimit = 5000m;
-        private const decimal MinContainerDropDeployHeight = 200m; // this is based on existing Container prefabs.
-        private const decimal MaxContainerDropDeployHeight = 1000m;
+        public const decimal DefaultContainerDropDeployHeight = 200m; // this is based on existing Container prefabs. This will override previous values though if the vanila values are changed from 300.
+        private const decimal MinContainerDropDeployHeight = 200m; 
+        private const decimal MaxContainerDropDeployHeight = 5000m;
+        public const decimal DefaultRespawnShipDeployHeight = 300m; // 300 is the default on existing respawnpod prefabs. This will override previous values though if the vanila values are changed from 300.
+        private const decimal MinRespawnShipDeployHeight = 200m;
+        private const decimal MaxRespawnShipDeployHeight = 5000m;
 
         #region properties
 
@@ -76,6 +80,7 @@
                         ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.MissileMaxSpeed = ConfigurableSpeedComponentLogic.Instance.DefaultDefinitionValues.MissileMaxSpeed;
                         ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.RemoteControlMaxSpeed = ConfigurableSpeedComponentLogic.Instance.DefaultDefinitionValues.RemoteControlMaxSpeed;
                         ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.ContainerDropDeployHeight = ConfigurableSpeedComponentLogic.Instance.DefaultDefinitionValues.ContainerDropDeployHeight;
+                        ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.RespawnShipDeployHeight = ConfigurableSpeedComponentLogic.Instance.DefaultDefinitionValues.RespawnShipDeployHeight;
                         ConfigurableSpeedComponentLogic.Instance.IsModified = true;
 
                         var msg = new StringBuilder();
@@ -387,7 +392,40 @@
                         }
                     }
 
-                    MessageClientTextMessage.SendMessage(SenderSteamId, "ConfigSpeed", "The new drop container open limit can only be between {0:N0} and {1:N0}", MinContainerDropDeployHeight, MaxContainerDropDeployHeight);
+                    MessageClientTextMessage.SendMessage(SenderSteamId, "ConfigSpeed", "The new drop container drop limit can only be between {0:N0} and {1:N0}", MinContainerDropDeployHeight, MaxContainerDropDeployHeight);
+                    break;
+
+                #endregion
+
+                #region RespawnShipDeployHeight
+
+                case "respawnshipdeployheight":
+                case "respawndeployheight":
+                case "respawnheight":
+                    if (!string.IsNullOrEmpty(Value))
+                    {
+                        decimal decimalTest;
+                        if (decimal.TryParse(Value, NumberStyles.Any, CultureInfo.InvariantCulture, out decimalTest))
+                        {
+                            if (decimalTest >= MinRespawnShipDeployHeight && decimalTest <= MaxRespawnShipDeployHeight)
+                            {
+                                ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.RespawnShipDeployHeight = decimalTest;
+                                ConfigurableSpeedComponentLogic.Instance.IsModified = true;
+
+                                var msg = new StringBuilder();
+                                msg.AppendFormat("RespawnDeployHeight updated to: {0:N0} m\r\n", ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.RespawnShipDeployHeight);
+                                msg.AppendLine();
+                                msg.AppendLine();
+                                msg.AppendLine("Once you have finished your changes, you must save the game and then restart it immediately for it to take effect.");
+                                msg.AppendLine();
+                                msg.AppendLine("If you only save the game and do not restart, any player that connects will experience issues.");
+                                MessageClientDialogMessage.SendMessage(SenderSteamId, "ConfigSpeed", " ", msg.ToString());
+                                return;
+                            }
+                        }
+                    }
+
+                    MessageClientTextMessage.SendMessage(SenderSteamId, "ConfigSpeed", "The new planet respawn pod deploy limit can only be between {0:N0} and {1:N0}", MinRespawnShipDeployHeight, MaxRespawnShipDeployHeight);
                     break;
 
                 #endregion
@@ -406,6 +444,7 @@
                         msg.AppendLine($"  MissileMaxSpeed: {ConfigurableSpeedComponentLogic.Instance.OldEnvironmentComponent.MissileMaxSpeed:N0} m/s       (Range: 1-{MaxMissileSpeedLimit:N0})");
                         msg.AppendLine($"  AutoPilotLimit: {ConfigurableSpeedComponentLogic.Instance.OldEnvironmentComponent.RemoteControlMaxSpeed:N0} m/s      (Range: 1-{MaxAutoPilotSpeedLimit:N0})");
                         msg.AppendLine($"  ContainerDeployHeight: {ConfigurableSpeedComponentLogic.Instance.OldEnvironmentComponent.ContainerDropDeployHeight:N0} m      (Range: {MinContainerDropDeployHeight:N0}-{MaxContainerDropDeployHeight:N0})");
+                        msg.AppendLine($"  RespawnDeployHeight: {ConfigurableSpeedComponentLogic.Instance.OldEnvironmentComponent.RespawnShipDeployHeight:N0} m      (Range: {MinRespawnShipDeployHeight:N0}-{MaxRespawnShipDeployHeight:N0})");
                         msg.AppendLine();
 
                         if (ConfigurableSpeedComponentLogic.Instance.IsModified)
@@ -419,6 +458,7 @@
                             msg.AppendLine($"  MissileMaxSpeed: {ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.MissileMaxSpeed:N0} m/s");
                             msg.AppendLine($"  AutoPilotLimit: {ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.RemoteControlMaxSpeed:N0} m/s");
                             msg.AppendLine($"  ContainerDeployHeight: {ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.ContainerDropDeployHeight:N0} m");
+                            msg.AppendLine($"  RespawnDeployHeight: {ConfigurableSpeedComponentLogic.Instance.EnvironmentComponent.RespawnShipDeployHeight:N0} m");
                             msg.AppendLine();
                             msg.AppendLine("You must save and restart/reload the game to apply these settings.");
                         }
